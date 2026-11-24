@@ -78,9 +78,9 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // ── Delivery partners: authenticated read (for live tracking); admin all; no client write. ──
+    // ── Delivery partners: partner can read own profile; admin can read all; no client write. ──
     match /deliveryPartners/{uid} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
       allow write: if false;
     }
 

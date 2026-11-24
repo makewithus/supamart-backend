@@ -278,16 +278,25 @@ test("Firestore Security Rules Suite", async (t) => {
   await t.test("Delivery Partners: authenticated users can read for live tracking, unauthenticated denied, writes denied", async () => {
     const custADb = testEnv.authenticatedContext("cust-A", { role: "CUSTOMER" }).firestore();
     const partner1Db = testEnv.authenticatedContext("partner-1", { role: "PARTNER" }).firestore();
+    const partner2Db = testEnv.authenticatedContext("partner-2", { role: "PARTNER" }).firestore();
     const adminDb = testEnv.authenticatedContext("admin-1", { role: "ADMIN" }).firestore();
     const unauthDb = testEnv.unauthenticatedContext().firestore();
 
-    // Authenticated users (customer, partner, admin) can read partner doc (for tracking)
-    await assertSucceeds(custADb.collection("deliveryPartners").doc("partner-1").get());
+    // Delivery Partner can read their OWN document; Admin can read all
     await assertSucceeds(partner1Db.collection("deliveryPartners").doc("partner-1").get());
     await assertSucceeds(adminDb.collection("deliveryPartners").doc("partner-1").get());
 
+    // Customer CANNOT read partner document directly (prevents leaking phone, email, vehicle, current orders)
+    await assertFails(custADb.collection("deliveryPartners").doc("partner-1").get());
+
+    // Other partner CANNOT read partner-1's document
+    await assertFails(partner2Db.collection("deliveryPartners").doc("partner-1").get());
+
     // Unauthenticated user cannot read partner doc
     await assertFails(unauthDb.collection("deliveryPartners").doc("partner-1").get());
+
+    // Customer reads partner location safely through their OWN assigned order
+    await assertSucceeds(custADb.collection("orders").doc("order-1").get());
 
     // Client writes are denied
     await assertFails(custADb.collection("deliveryPartners").doc("partner-1").update({ name: "Hacked" }));

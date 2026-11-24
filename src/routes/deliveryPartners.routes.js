@@ -136,8 +136,18 @@ router.patch(
   "/:uid/location",
   authenticate,
   asyncHandler(async (req, res) => {
-    if (req.user.uid !== req.params.uid) {
-      return res.status(403).json({ error: "Forbidden" });
+    if (req.user.uid !== req.params.uid && req.user.role !== ROLES.ADMIN) {
+      return res.status(403).json({ error: "Forbidden: You can only update your own location" });
+    }
+    if (req.user.role !== ROLES.PARTNER && req.user.role !== ROLES.ADMIN) {
+      return res.status(403).json({ error: "Forbidden: Partner or Admin role required" });
+    }
+    const partner = await DeliveryPartners.findById(req.params.uid);
+    if (!partner) {
+      return res.status(404).json({ error: "Delivery partner not found" });
+    }
+    if (partner.isActive === false) {
+      return res.status(403).json({ error: "Delivery partner account is deactivated" });
     }
     const { lat, lng, speed } = req.body;
     if (typeof lat !== "number" || typeof lng !== "number") {

@@ -147,4 +147,42 @@ test("Application Regression Test Suite", async (t) => {
     });
     assert.strictEqual(missingTokenRes.status, 422);
   });
+
+  await t.test("Delivery Partner Location: PATCH /location requires auth, role check, and ownership", async () => {
+    // 1. Unauthenticated request
+    const unauthRes = await fetch(`${baseUrl}/api/delivery-partners/dp-123/location`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lat: 8.5241, lng: 76.9366 }),
+    });
+    assert.strictEqual(unauthRes.status, 401);
+
+    // 2. Customer role is rejected with 403
+    const customerToken = createToken("cust-1", ROLES.CUSTOMER);
+    const customerRes = await fetch(`${baseUrl}/api/delivery-partners/cust-1/location`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${customerToken}`,
+      },
+      body: JSON.stringify({ lat: 8.5241, lng: 76.9366 }),
+    });
+    assert.strictEqual(customerRes.status, 403);
+    const customerBody = await customerRes.json();
+    assert.ok(customerBody.error.includes("Partner or Admin role required"));
+
+    // 3. Partner updating someone else's UID is rejected with 403
+    const partnerToken = createToken("partner-1", ROLES.PARTNER);
+    const otherPartnerRes = await fetch(`${baseUrl}/api/delivery-partners/partner-2/location`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${partnerToken}`,
+      },
+      body: JSON.stringify({ lat: 8.5241, lng: 76.9366 }),
+    });
+    assert.strictEqual(otherPartnerRes.status, 403);
+    const otherPartnerBody = await otherPartnerRes.json();
+    assert.ok(otherPartnerBody.error.includes("own location"));
+  });
 });

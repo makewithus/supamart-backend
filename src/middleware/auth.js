@@ -11,7 +11,7 @@ if (!JWT_SECRET) throw new Error("JWT_SECRET env var is required");
 async function authenticate(req, res, next) {
   try {
     const header = req.headers.authorization || "";
-    const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+    const token = /^Bearer\s+(\S+)/i.exec(header)?.[1] || (header.startsWith("Bearer ") ? header.slice(7).trim() : null);
     if (!token) return res.status(401).json({ error: "Missing token" });
 
     // Try Firebase ID token first (admin portal sends these directly)
@@ -59,7 +59,7 @@ async function authenticate(req, res, next) {
 async function optionalAuthenticate(req, res, next) {
   try {
     const header = req.headers.authorization || "";
-    const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+    const token = /^Bearer\s+(\S+)/i.exec(header)?.[1] || (header.startsWith("Bearer ") ? header.slice(7).trim() : null);
     if (!token) return next();
 
     try {
